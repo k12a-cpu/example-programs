@@ -1,7 +1,9 @@
 ; Simple demo to display a pattern on the LEDs.
 
+.section rom
+
 ; The I/O port connected to the LED outputs.
-@define LEDS_PORT 2
+.define LEDS_PORT, 2
 
 start:
     ; Initialise A.
