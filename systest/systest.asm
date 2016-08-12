@@ -271,4 +271,4 @@ rjmp_ok:
     rjmp terminate
 
 testbyte:
-    ;.byte 0x88
+    .byte 0x88
