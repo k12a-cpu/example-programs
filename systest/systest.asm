@@ -82,6 +82,7 @@ terminate:
     %terminate
 rjmp_ok:
 
+    ; Test the basic test infrastructure (movi, skeq/skne, assertions).
     movi A, 0x84
     movi B, 0x84
     skeq
@@ -98,6 +99,7 @@ rjmp_ok:
     skne
     %assert_not_skipped 0x05
 
+    ; Test skult and skuge.
     movi A, 0x44
     movi B, 0x68
     skult
@@ -109,7 +111,7 @@ rjmp_ok:
     movi A, 0x93
     skulti 0x35
     %assert_not_skipped 0x08
-    
+
     movi A, 0x32
     movi B, 0xae
     skuge
@@ -121,7 +123,8 @@ rjmp_ok:
     movi B, 0x2d
     skuge
     %assert_skipped 0x0b
-    
+
+    ; Test arithmetic operations (and, or, xor, add, sub, asr).
     movi A, 0xf5
     movi B, 0xc4
     and A, A, B
@@ -129,7 +132,7 @@ rjmp_ok:
     movi A, 0xd2
     andi A, A, 0x34
     %assert_equal 0x10, 0x0d
-    
+
     movi A, 0x41
     movi B, 0x9b
     or A, A, B
@@ -137,7 +140,7 @@ rjmp_ok:
     movi A, 0x83
     ori A, A, 0x0f
     %assert_equal 0x8f, 0x0f
-    
+
     movi A, 0x87
     movi B, 0x72
     xor A, A, B
@@ -145,7 +148,7 @@ rjmp_ok:
     movi A, 0x74
     xori A, A, 0x63
     %assert_equal 0x17, 0x11
-    
+
     movi A, 0xe4
     movi B, 0x23
     add A, A, B
@@ -153,7 +156,7 @@ rjmp_ok:
     movi A, 0x21
     addi A, A, 0x5c
     %assert_equal 0x7d, 0x13
-    
+
     movi A, 0xe4
     movi B, 0x77
     sub A, A, B
@@ -161,14 +164,15 @@ rjmp_ok:
     movi A, 0x3c
     subi A, A, 0xfa
     %assert_equal 0x42, 0x15
-    
+
     movi A, 0x6e
     asr A, A
     %assert_equal 0x37, 0x16
     movi A, 0xc2
     asr A, A
     %assert_equal 0xe1, 0x17
-    
+
+    ; Test all 16 possible register-to-register moves.
     movi A, 0xAA
     movi B, 0x55
     movi C, 0x55
@@ -197,12 +201,14 @@ rjmp_ok:
     movi D, 0x55
     mov A, B
     %assert_equal 0xAA, 0x18
-    
+
+    ; Test loading from ROM.
     movi C, testbyte >> 8
     movi D, testbyte & 0xFF
     ld
     %assert_equal 0x88, 0x19
-    
+
+    ; Test storing to and loading from RAM.
     movi C, 0xa5
     movi D, 0x43
     movi A, 0x26
@@ -210,7 +216,8 @@ rjmp_ok:
     movi A, 0x00
     ld
     %assert_equal 0x26, 0x1a
-    
+
+    ; Test stack (getsp/putsp and ldd/std).
     movi C, 0xff
     movi D, 0x00
     putsp
@@ -236,7 +243,8 @@ rjmp_ok:
     %assert_equal 0xff, 0x1f
     mov A, D
     %assert_equal 0x00, 0x20
-    
+
+    ; Test inc/dec.
     movi C, 0xe6
     movi D, 0xff
     inc
@@ -257,7 +265,6 @@ rjmp_ok:
     movi A, 0x00
     ld
     %assert_equal 0x7c, 0x25
-    
 
     ; All tests successful! Exit with code 0.
     movi B, 0
