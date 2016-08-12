@@ -267,7 +267,7 @@ rjmp_ok:
     %assert_equal 0x7c, 0x25
 
     ; All tests successful! Exit with code 0.
-    movi B, 0
+    movi B, 0xFF
     rjmp terminate
 
 testbyte:
