@@ -23,29 +23,30 @@
 ; Arguments:
 ;   exit code (in B)
 .macro %terminate
-    ; Extract high byte of exit code, and write to seven-segment display 0.
-    mov A, B
-    asr A, A
-    asr A, A
-    asr A, A
-    asr A, A
-    andi A, A, 0x0F
-    out IO_SS0
     ; Extract low byte of exit code, and write to seven-segment display 1.
     mov A, B
-    andi A, A, 0x0F
     out IO_SS1
+    ; Extract high byte of exit code, and write to seven-segment display 0.
+    asr A, A
+    asr A, A
+    asr A, A
+    asr A, A
+    out IO_SS0
     ; Hang forever.
 hang_M$$:
     halt
     rjmp hang_M$$
 .endmacro
 
+.macro %terminate_with code
+    movi B, code
+    rjmp terminate
+.endmacro
+
 .macro %assert_not_skipped code
     rjmp success_M$$  ; This instruction should be executed.
     ; Control flow should not reach this point.
-    movi B, code
-    rjmp terminate
+    %terminate_with code
 success_M$$:
 .endmacro
 
@@ -54,14 +55,21 @@ success_M$$:
     ; Control flow should reach this point.
     rjmp success_M$$
 fail_M$$:
-    movi B, code
-    rjmp terminate
+    %terminate_with code
 success_M$$:
 .endmacro
 
 .macro %assert_equal val, code
     sknei val
     %assert_not_skipped code
+.endmacro
+
+.macro %assert_memory_equal addr, val, code
+    movi A, 0x00
+    movi C, addr >> 8
+    movi D, addr & 0xff
+    ld
+    %assert_equal val, code
 .endmacro
 
 main:
@@ -173,7 +181,7 @@ rjmp_ok:
     %assert_equal 0xe1, 0x17
 
     ; Test all 16 possible register-to-register moves.
-    movi A, 0xAA
+    movi A, 0xaa
     movi B, 0x55
     movi C, 0x55
     movi D, 0x55
@@ -200,11 +208,11 @@ rjmp_ok:
     mov B, D
     movi D, 0x55
     mov A, B
-    %assert_equal 0xAA, 0x18
+    %assert_equal 0xaa, 0x18
 
     ; Test loading from ROM.
     movi C, testbyte >> 8
-    movi D, testbyte & 0xFF
+    movi D, testbyte & 0xff
     ld
     %assert_equal 0x88, 0x19
 
@@ -217,7 +225,7 @@ rjmp_ok:
     ld
     %assert_equal 0x26, 0x1a
 
-    ; Test stack (getsp/putsp and ldd/std).
+    ; Test stack (getsp/putsp, push/pop and ldd/std).
     movi C, 0xff
     movi D, 0x00
     putsp
@@ -256,7 +264,7 @@ rjmp_ok:
     mov A, C
     %assert_equal 0xe6, 0x23
     mov A, D
-    %assert_equal 0xFF, 0x24
+    %assert_equal 0xff, 0x24
     putsp
     movi A, 0x00
     st
@@ -265,9 +273,52 @@ rjmp_ok:
     movi A, 0x00
     ld
     %assert_equal 0x7c, 0x25
+    
+    ; Test ldd/std with nonzero offset.
+    movi C, 0xc0
+    movi D, 0x00
+    putsp
+    movi A, 0xbb
+    std 0x001       ; address 0xc001
+    movi A, 0xee
+    std 0x3ff       ; address 0xc3ff
+    movi A, 0xfc
+    std -0x001      ; address 0xbfff
+    movi A, 0xe5
+    std -0x400      ; address 0xbc00
+    %assert_memory_equal 0xc001, 0xbb, 0x26
+    %assert_memory_equal 0xc3ff, 0xee, 0x27
+    %assert_memory_equal 0xbfff, 0xfc, 0x28
+    %assert_memory_equal 0xbc00, 0xe5, 0x29
+    
+    ; Test addsp.
+    addsp -0x381
+    getsp
+    mov A, C
+    %assert_equal 0xbc, 0x2a
+    mov A, D
+    %assert_equal 0x7f, 0x2b
+    
+    ; Test rcall and ljmp.
+    rcall rcall_dest
+expected_return_addr:
+    %terminate_with 0x2c ; Should never be reached.
+rcall_dest:
+    mov A, C
+    %assert_equal expected_return_addr >> 8, 0x2d
+    mov A, D
+    %assert_equal expected_return_addr & 0xff, 0x2e
+    movi C, ljmp_dest >> 8
+    movi D, ljmp_dest & 0xff
+    ljmp
+    %terminate_with 0x2f ; Should never be reached.
+ljmp_dest:
+    
+    
+    ; Test I/O.
 
     ; All tests successful! Exit with code 0.
-    movi B, 0xFF
+    movi B, 0xff
     rjmp terminate
 
 testbyte:
