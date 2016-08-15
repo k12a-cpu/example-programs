@@ -1,59 +1,60 @@
-; Simple demo to display a pattern on the LEDs.
+; Simple demo to display a pattern on the LEDs attached to digital output port 0.
 
-.section rom
-
-; The I/O port connected to the LED outputs.
-.define LEDS_PORT, 2
+; The I/O port connected to the digital outputs.
+.define LEDS_PORT 0
 
 start:
+    ; Initialise stack pointer.
+    movi C, 0x90
+    movi D, 0x00
+    putsp
+
     ; Initialise A.
-    mov A, 0x01
+    movi A, 0x01
 
     ; Update LEDs to contents of A.
-    out LEDS_PORT, A
+    out LEDS_PORT
     
     ; Fall through to loop_left.
 
 loop_left:
     ; Wait some time.
-    mov B, A  ; The subroutine clobbers A, so save it in B.
     rcall delay
-    mov A, B  ; Restore contents of A.
 
     ; Logical-shift A left by one place.
     mov B, A
-    mov A, A+B
+    add A, A, B
 
     ; Update LEDs with contents of A.
-    out LEDS_PORT, A
+    out LEDS_PORT
 
     ; If A == 0x80, go to loop_right, else go to loop_left.
-    skzi A, 0x80    ; skip next instruction if A - 0x80 == 0
-    rjmp loop_left  ; executed only if A - 0x80 != 0
+    skeqi 0x80      ; skip next instruction if A == 0x80
+    rjmp loop_left  ; executed only if A != 0x80
     ; Otherwise, fall through to loop_right.
 
 loop_right:
     ; Wait some time.
-    mov B, A  ; The subroutine clobbers A, so save it in B.
     rcall delay
-    mov A, B  ; Restore contents of A.
     
     ; Logical-shift A right by one place.
-    mov A, A >> 1
-    mov A, A & 0x7F  ; The right shift is an arithmetic shift. We make it a logical shift by clearing the MSB, if it was set.
+    asr A, A
+    andi A, A, 0x7F  ; The right shift is an arithmetic shift. We make it a logical shift by clearing the MSB, if it was set.
 
     ; Update LEDs with contents of A.
-    out LEDS_PORT, A
+    out LEDS_PORT
 
     ; If A == 0x01, go to loop_left, else go to loop_right.
-    skzi A, 0x01     ; skip next instruction if A - 0x01 == 0
-    rjmp loop_right  ; executed only if if A - 0x01 != 0
+    skeqi 0x01       ; skip next instruction if A == 0x01
+    rjmp loop_right  ; executed only if if A != 0x01
     rjmp loop_left   ; executed otherwise
 
 
 ; Delay for some time (a quarter of a second, assuming a 100 kHz clock).
-; This subroutine clobbers A, C and D, but preserves B.
+; This subroutine clobbers C and D, but preserves B.
 delay:
+    ; Save contents of A.
+    push
     ; Save return address (in registers C and D).
     mov A, D
     push
@@ -73,17 +74,20 @@ delay:
     ;                  = 1725
     ;                  = 0x06BD
     
-    mov C, 0x06
-    mov D, 0xBD
+    movi C, 0x06
+    movi D, 0xBD
 delay_loop:
-    dec              ; decrement CD
-    mov A, C         ; copy C to A
-    skzi A, 0x00     ; skip next instruction if A - 0x00 == 0
-    rjmp delay_loop  ; executed only if A != 0
+    dec              ; (4 cycles) decrement CD
+    mov A, C         ; (4 cycles) copy C to A
+    skeqi 0x00       ; (4 cycles) skip next instruction if A == 0x00
+    rjmp delay_loop  ; (5 cycles) executed only if A != 0
     
-    ; Return.
+    ; Restore return address.
+    pop
     mov C, A
     pop
     mov D, A
+    ; Restore A.
     pop
+    ; Return to caller.
     ljmp
